@@ -57,7 +57,7 @@ dependencies {
 
     implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
 
-    implementation("com.github.sandip4337:NeelPowerPdfViewerLib:v1.0.2")
+    implementation("com.github.sandip4337:NeelPowerPdfViewerLib:v1.0.4")
 
     implementation("androidx.work:work-runtime-ktx:2.8.1")
 }

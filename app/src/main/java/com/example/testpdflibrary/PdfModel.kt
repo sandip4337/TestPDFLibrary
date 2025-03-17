@@ -1,4 +1,4 @@
-package com.example.pdfdownloadersandip
+package com.example.testpdflibrary
 
 data class PdfModel(
     val pdfId: String,  // Unique identifier for each PDF

@@ -1,9 +1,8 @@
 package com.example.testpdflibrary
 
 import android.os.Bundle
-import android.widget.Button
+import android.util.Log
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -16,7 +15,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.example.pdfdownloadersandip.PdfModel
+import com.example.powerpdflibrary.PdfDownloadWorker
 import com.example.powerpdflibrary.PdfViewerActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -27,7 +26,11 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
     private lateinit var adapter: PdfDownloadAdapter
     private val pdfList = listOf(
         PdfModel("1", "Sample PDF 1", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf"),
-        PdfModel("2", "Sample PDF 2", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf")
+        PdfModel("2", "Sample PDF 2", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf"),
+        PdfModel("3", "Sample PDF 3", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf"),
+        PdfModel("4", "Sample PDF 4", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf"),
+        PdfModel("5", "Sample PDF 5", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf"),
+        PdfModel("6", "Sample PDF 6", "https://history.nasa.gov/alsj/a17/A17_FlightPlan.pdf")
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +41,6 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = PdfDownloadAdapter(pdfList, this, this)
         recyclerView.adapter = adapter
-
 
     }
 
@@ -94,6 +96,7 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
                     when (workInfo.state) {
                         WorkInfo.State.RUNNING -> {
                             val progress = workInfo.progress.getInt("PROGRESS", 0)
+                            Log.e("PdfDownloadWorker", progress.toString() )
                             onProgressUpdate(pdf.pdfId, progress)
                         }
                         WorkInfo.State.SUCCEEDED -> {

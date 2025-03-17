@@ -8,8 +8,6 @@ import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.pdfdownloadersandip.PdfModel
-import com.example.powerpdflibrary.R
 import java.io.File
 
 interface PdfDownloadCallback {
