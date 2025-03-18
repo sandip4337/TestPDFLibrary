@@ -4,9 +4,10 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
 
@@ -24,8 +25,8 @@ class PdfDownloadAdapter(
     context: Context
 ) : RecyclerView.Adapter<PdfDownloadAdapter.PdfViewHolder>() {
 
-    private val progressMap = mutableMapOf<String, Int>() // Track progress per item
-
+    private val progressMap = mutableMapOf<String, Int>()
+    private val completedSet = mutableSetOf<String>()
     private val filesDirPath = context.filesDir.absolutePath
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PdfViewHolder {
@@ -33,72 +34,129 @@ class PdfDownloadAdapter(
         return PdfViewHolder(view)
     }
 
+    override fun onBindViewHolder(holder: PdfViewHolder, position: Int, payloads: List<Any>) {
+        if (payloads.isNotEmpty()) {
+            val progress = payloads[0] as Int
+            holder.updateProgress(progress)
+        } else {
+            onBindViewHolder(holder, position)
+        }
+    }
+
     override fun onBindViewHolder(holder: PdfViewHolder, position: Int) {
         val pdf = pdfList[position]
         holder.bind(pdf)
 
         val progress = progressMap[pdf.pdfId] ?: 0
-        holder.updateProgress(progress)
 
+        if (completedSet.contains(pdf.pdfId)) {
+            holder.showCompletedState()
+        } else if (progress in 1..99) {
+            holder.updateProgress(progress)
+        } else {
+            holder.showInitialState()
+        }
 
         holder.downloadButton.setOnClickListener {
-            downloadCallback.onStartDownload(pdf) // Notify MainActivity to start download
+            downloadCallback.onStartDownload(pdf)
         }
 
-        holder.openButton.setOnClickListener {
-            downloadCallback.onOpenFile(pdf)
+        holder.llOpenPdf.setOnClickListener {
+            val pdfID = pdf.pdfId
+            val pdfName = pdf.pdfName
+            val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
+            if (File(htmlFilePath).exists()) {
+                downloadCallback.onOpenFile(pdf)
+            }
         }
 
+        holder.deleteIcon.setOnClickListener {
+            val pdfID = pdf.pdfId
+            val pdfName = pdf.pdfName
+            val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
+            val file = File(htmlFilePath)
+            if (file.exists()) {
+                file.delete()
+            }
+            completedSet.remove(pdf.pdfId)
+            holder.showInitialState()
+        }
     }
 
     override fun getItemCount(): Int = pdfList.size
 
     fun updateProgress(pdfId: String, progress: Int) {
         progressMap[pdfId] = progress
-//        Log.e("jj", progress.toString())
         val position = pdfList.indexOfFirst { it.pdfId == pdfId }
         if (position != -1) {
-            notifyItemChanged(position) // Update only the specific item
+            notifyItemChanged(position, progress)
         }
     }
+
+    fun downloadComplete(pdfId: String) {
+        completedSet.add(pdfId)
+        progressMap[pdfId] = 100
+        val position = pdfList.indexOfFirst { it.pdfId == pdfId }
+        if (position != -1) {
+            notifyItemChanged(position)
+        }
+    }
+
     inner class PdfViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val title: TextView = view.findViewById(R.id.pdfTitle)
-        val downloadButton: Button = view.findViewById(R.id.downloadButton)
+        val downloadButton: ImageView = view.findViewById(R.id.downloadButton)
         val progressBar: ProgressBar = view.findViewById(R.id.progressBar)
         val progressText: TextView = view.findViewById(R.id.progressText)
-        val openButton: Button = view.findViewById(R.id.openButton)
+        val doneImage: ImageView = view.findViewById(R.id.doneImage)
+        val statusText: TextView = view.findViewById(R.id.statusText)
+        val deleteIcon: ImageView = view.findViewById(R.id.deleteIcon)
+        val llOpenPdf: ConstraintLayout = view.findViewById(R.id.llOpenPdf)
 
         fun bind(pdf: PdfModel) {
             val pdfID = pdf.pdfId
             val pdfName = pdf.pdfName
             val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
             title.text = pdf.pdfName
-            progressBar.progress = 0
-            progressText.text = "0%"
             if (File(htmlFilePath).exists()) {
-                openButton.visibility = View.VISIBLE
-                downloadButton.visibility = View.GONE
+                showCompletedState()
+            } else {
+                showInitialState()
             }
         }
 
         fun updateProgress(progress: Int) {
-            progressBar.visibility = View.VISIBLE
-            progressText.visibility = View.VISIBLE
+            progressBar.visibility = if (progress in 1..99) View.VISIBLE else View.GONE
+            progressText.visibility = if (progress in 1..99) View.VISIBLE else View.GONE
+            statusText.visibility = if (progress in 0..99) View.VISIBLE else View.GONE
             progressBar.progress = progress
             progressText.text = "$progress%"
 
             if (progress == 100) {
-                openButton.visibility = View.VISIBLE
+                showCompletedState()
+            } else if (progress >= 0) {
+                statusText.text = "Downloading..."
                 downloadButton.visibility = View.GONE
-                progressBar.visibility = View.GONE
-                progressText.visibility = View.GONE
-            } else if (progress > 0) {
-                downloadButton.text = "Downloading..."
             } else {
-                progressBar.visibility = View.GONE
-                progressText.visibility = View.GONE
-                downloadButton.text = "Download"
+                showInitialState()
             }
+        }
+
+        fun showCompletedState() {
+            doneImage.visibility = View.VISIBLE
+            downloadButton.visibility = View.GONE
+            deleteIcon.visibility = View.VISIBLE
+            progressBar.visibility = View.GONE
+            progressText.visibility = View.GONE
+            statusText.visibility = View.GONE
+        }
+
+        fun showInitialState() {
+            doneImage.visibility = View.GONE
+            downloadButton.visibility = View.VISIBLE
+            deleteIcon.visibility = View.GONE
+            progressBar.visibility = View.GONE
+            progressText.visibility = View.GONE
+            statusText.visibility = View.GONE
         }
     }
 }

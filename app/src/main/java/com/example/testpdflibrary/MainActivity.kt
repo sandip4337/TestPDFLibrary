@@ -4,17 +4,10 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
+import androidx.work.*
 import com.example.powerpdflibrary.PdfDownloadWorker
 import com.example.powerpdflibrary.PdfViewerActivity
 import kotlinx.coroutines.Dispatchers
@@ -41,7 +34,6 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = PdfDownloadAdapter(pdfList, this, this)
         recyclerView.adapter = adapter
-
     }
 
     override fun onStartDownload(pdf: PdfModel) {
@@ -56,7 +48,7 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
 
     override fun onDownloadComplete(pdfId: String, htmlFilePath: String) {
         lifecycleScope.launch(Dispatchers.Main) {
-            Toast.makeText(this@MainActivity, "Download complete: $htmlFilePath", Toast.LENGTH_SHORT).show()
+
         }
     }
 
@@ -80,32 +72,56 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
 
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true) // Prevents running on low battery
+            .setRequiresBatteryNotLow(true)
             .build()
 
         val downloadRequest = OneTimeWorkRequestBuilder<PdfDownloadWorker>()
+            .addTag(pdf.pdfId) // Tagging the worker
             .setInputData(data)
             .setConstraints(constraints)
             .build()
 
         workManager.enqueueUniqueWork(pdf.pdfId, ExistingWorkPolicy.KEEP, downloadRequest)
 
-        ProcessLifecycleOwner.get().lifecycleScope.launch {
-            workManager.getWorkInfoByIdLiveData(downloadRequest.id).observeForever { workInfo ->
-                if (workInfo != null) {
+        observeWorkInfo(pdf)
+    }
+
+    private fun observeWorkInfo(pdf: PdfModel) {
+        val workManager = WorkManager.getInstance(this)
+        workManager.getWorkInfosByTagLiveData(pdf.pdfId).observe(this) { workInfos ->
+            workInfos?.forEach { workInfo ->
+                when (workInfo.state) {
+                    WorkInfo.State.RUNNING -> {
+                        val progress = workInfo.progress.getInt("PROGRESS", 0)
+                        Log.e("PdfDownloadWorker", "Progress: $progress for PDF ${pdf.pdfId}")
+                        runOnUiThread { adapter.updateProgress(pdf.pdfId, progress) }
+                    }
+                    WorkInfo.State.SUCCEEDED -> {
+                        runOnUiThread { adapter.downloadComplete(pdf.pdfId) }
+                    }
+                    WorkInfo.State.FAILED -> {
+                        onDownloadFailed(pdf.pdfId)
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val workManager = WorkManager.getInstance(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            pdfList.forEach { pdf ->
+                val workInfos = workManager.getWorkInfosByTag(pdf.pdfId).get()
+                workInfos?.forEach { workInfo ->
                     when (workInfo.state) {
                         WorkInfo.State.RUNNING -> {
                             val progress = workInfo.progress.getInt("PROGRESS", 0)
-                            Log.e("PdfDownloadWorker", progress.toString() )
-                            onProgressUpdate(pdf.pdfId, progress)
+                            runOnUiThread { adapter.updateProgress(pdf.pdfId, progress) }
                         }
                         WorkInfo.State.SUCCEEDED -> {
-                            val outputData = workInfo.outputData
-                            val htmlFilePath = outputData.getString("HTML_FILE_PATH") ?: ""
-                            onDownloadComplete(pdf.pdfId, htmlFilePath)
-                        }
-                        WorkInfo.State.FAILED -> {
-                            onDownloadFailed(pdf.pdfId)
+                            runOnUiThread { adapter.downloadComplete(pdf.pdfId) }
                         }
                         else -> {}
                     }
@@ -113,4 +129,5 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
             }
         }
     }
+
 }
