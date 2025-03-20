@@ -93,9 +93,22 @@ class PdfDownloadAdapter(
         }
     }
 
-    fun downloadComplete(pdfId: String) {
-        completedSet.add(pdfId)
-        progressMap[pdfId] = 100
+    fun downloadComplete(pdfId: String, pdfName: String) {
+        val pdfID = pdfId
+        val pdfName = pdfName
+        val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
+        if (File(htmlFilePath).exists()) {
+            completedSet.add(pdfId)
+            progressMap[pdfId] = 100
+            val position = pdfList.indexOfFirst { it.pdfId == pdfId }
+            if (position != -1) {
+                notifyItemChanged(position)
+            }
+        }
+    }
+
+    fun downloadFailed(pdfId: String) {
+        progressMap[pdfId] = -1
         val position = pdfList.indexOfFirst { it.pdfId == pdfId }
         if (position != -1) {
             notifyItemChanged(position)
