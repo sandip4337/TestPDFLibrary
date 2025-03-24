@@ -9,7 +9,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
-import java.io.File
+import com.example.powerpdflibrary.PowerPdfLibChecker
 
 interface PdfDownloadCallback {
     fun onStartDownload(pdf: PdfModel)
@@ -22,12 +22,11 @@ interface PdfDownloadCallback {
 class PdfDownloadAdapter(
     private val pdfList: List<PdfModel>,
     private val downloadCallback: PdfDownloadCallback,
-    context: Context
+    private val context: Context
 ) : RecyclerView.Adapter<PdfDownloadAdapter.PdfViewHolder>() {
 
     private val progressMap = mutableMapOf<String, Int>()
     private val completedSet = mutableSetOf<String>()
-    private val filesDirPath = context.filesDir.absolutePath
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PdfViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_pdf, parent, false)
@@ -62,22 +61,13 @@ class PdfDownloadAdapter(
         }
 
         holder.llOpenPdf.setOnClickListener {
-            val pdfID = pdf.pdfId
-            val pdfName = pdf.pdfName
-            val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
-            if (File(htmlFilePath).exists()) {
+            if (PowerPdfLibChecker.checkPdfExits(context, pdf.pdfName, pdf.pdfId)) {
                 downloadCallback.onOpenFile(pdf)
             }
         }
 
         holder.deleteIcon.setOnClickListener {
-            val pdfID = pdf.pdfId
-            val pdfName = pdf.pdfName
-            val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
-            val file = File(htmlFilePath)
-            if (file.exists()) {
-                file.delete()
-            }
+            PowerPdfLibChecker.deletePdfFile(context, pdf.pdfName, pdf.pdfId)
             completedSet.remove(pdf.pdfId)
             holder.showInitialState()
         }
@@ -94,10 +84,7 @@ class PdfDownloadAdapter(
     }
 
     fun downloadComplete(pdfId: String, pdfName: String) {
-        val pdfID = pdfId
-        val pdfName = pdfName
-        val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
-        if (File(htmlFilePath).exists()) {
+        if (PowerPdfLibChecker.checkPdfExits(context, pdfName, pdfId)) {
             completedSet.add(pdfId)
             progressMap[pdfId] = 100
             val position = pdfList.indexOfFirst { it.pdfId == pdfId }
@@ -126,11 +113,8 @@ class PdfDownloadAdapter(
         val llOpenPdf: ConstraintLayout = view.findViewById(R.id.llOpenPdf)
 
         fun bind(pdf: PdfModel) {
-            val pdfID = pdf.pdfId
-            val pdfName = pdf.pdfName
-            val htmlFilePath = "$filesDirPath/$pdfName$pdfID.html"
             title.text = pdf.pdfName
-            if (File(htmlFilePath).exists()) {
+            if (PowerPdfLibChecker.checkPdfExits(context, pdf.pdfName, pdf.pdfId)) {
                 showCompletedState()
             } else {
                 showInitialState()

@@ -2,6 +2,7 @@ package com.example.testpdflibrary
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity(), PdfDownloadCallback {
 
     private lateinit var recyclerView: RecyclerView
+    private lateinit var pdfButton: Button
     private lateinit var adapter: PdfDownloadAdapter
     private val pdfList = listOf(
         PdfModel("1", "Sample PDF 1", "alsj/a17/A17_FlightPlan.pdf", "https://history.nasa.gov/"),
@@ -32,9 +34,16 @@ class MainActivity : AppCompatActivity(), PdfDownloadCallback {
         setContentView(R.layout.activity_main)
 
         recyclerView = findViewById(R.id.recyclerView)
+        pdfButton = findViewById(R.id.openPdf)
+
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = PdfDownloadAdapter(pdfList, this, this)
         recyclerView.adapter = adapter
+
+        pdfButton.setOnClickListener {
+            val pdf = PdfModel("7", "Sample PDF 7", "alsj/a17/A17_FlightPlan.pdf", "https://history.nasa.gov/")
+            PdfViewerActivity.openPdfViewer(this, pdf.pdfUrl, pdf.pdfName, pdf.pdfId, pdf.baseUrl)
+        }
     }
 
     override fun onStartDownload(pdf: PdfModel) {
